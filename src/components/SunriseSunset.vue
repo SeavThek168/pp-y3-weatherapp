@@ -1,0 +1,337 @@
+<template>
+  <div class="sun-card p-4">
+    
+    <div class="card-content">
+      <!-- Sun path visualization -->
+      <div class="sun-path-container">
+        <div class="sun-path">
+          <div class="sun-path-arc"></div>
+          <div 
+            class="sun-position" 
+            :style="{ left: `${sunPosition}%` }"
+            :class="{ 'is-night': isNight }"
+          >
+            <i :class="isNight ? 'fas fa-moon' : 'fas fa-sun'"></i>
+          </div>
+          
+          <div class="horizon-line">
+            <div class="horizon-marker sunrise">
+              <i class="fas fa-sun"></i>
+              <div class="time">{{ formattedSunrise }}</div>
+            </div>
+            <div class="horizon-marker sunset">
+              <i class="fas fa-moon"></i>
+              <div class="time">{{ formattedSunset }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Time details -->
+      <div class="sun-times">
+        <div class="time-box sunrise-box">
+          <div class="time-label">Sunrise</div>
+          <div class="time-value">{{ formattedSunrise }}</div>
+        </div>
+        
+        <div class="time-box current-box">
+          <div class="time-label">Current Time</div>
+          <div class="time-value">{{ currentTime }}</div>
+          <div class="day-progress">
+            <div class="progress-bar" :style="{ width: `${dayProgressPercentage}%` }"></div>
+          </div>
+          <div class="day-length">Day Length: {{ dayLength }}</div>
+        </div>
+        
+        <div class="time-box sunset-box">
+          <div class="time-label">Sunset</div>
+          <div class="time-value">{{ formattedSunset }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import moment from "moment";
+
+export default {
+  name: "SunriseSunset",
+  data() {
+    return {
+      now: moment(),
+      intervalId: null,
+    };
+  },
+  created() {
+    // Update time every minute
+    this.intervalId = setInterval(() => {
+      this.now = moment();
+    }, 60000);
+  },
+  destroyed() {
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+    }
+  },  
+  computed: {
+    weather() {
+      return this.$store.state.weather;
+    },
+    formattedSunrise() {
+      if (!this.weather) return "--";
+      return this.formatTime(this.weather.sys.sunrise);
+    },
+    formattedSunset() {
+      if (!this.weather) return "--";
+      return this.formatTime(this.weather.sys.sunset);
+    },
+    currentTime() {
+      return this.now.format("hh:mm A");
+    },
+    sunriseTime() {
+      if (!this.weather) return null;
+      return moment.unix(this.weather.sys.sunrise)
+        .add(this.weather.timezone, "seconds");
+    },
+    sunsetTime() {
+      if (!this.weather) return null;
+      return moment.unix(this.weather.sys.sunset)
+        .add(this.weather.timezone, "seconds");
+    },
+    isNight() {
+      if (!this.sunriseTime || !this.sunsetTime) return false;
+      return this.now.isBefore(this.sunriseTime) || this.now.isAfter(this.sunsetTime);
+    },
+    sunPosition() {
+      if (!this.weather) return 50;
+      
+      const now = this.now;
+      const sunrise = this.sunriseTime;
+      const sunset = this.sunsetTime;
+      
+      // If it's before sunrise or after sunset
+      if (now.isBefore(sunrise)) {
+        return 0;
+      } else if (now.isAfter(sunset)) {
+        return 100;
+      }
+      
+      // Calculate position during daylight
+      const dayDuration = sunset.diff(sunrise);
+      const timeElapsed = now.diff(sunrise);
+      return (timeElapsed / dayDuration) * 100;
+    },
+    dayProgressPercentage() {
+      return Math.min(100, Math.max(0, this.sunPosition));
+    },
+    dayLength() {
+      if (!this.weather) return "--";
+      
+      const sunrise = this.sunriseTime;
+      const sunset = this.sunsetTime;
+      const duration = moment.duration(sunset.diff(sunrise));
+      
+      const hours = Math.floor(duration.asHours());
+      const minutes = Math.floor(duration.asMinutes() % 60);
+      
+      return `${hours}h ${minutes}m`;
+    },
+  },
+  methods: {
+    formatTime(timestamp) {
+      if (!this.weather || !timestamp) return "--";
+      return moment
+        .unix(timestamp)
+        .add(this.weather.timezone, "seconds")
+        .format("hh:mm A");
+    }
+  }
+};
+</script>
+
+<style scoped>
+.sun-card {
+  background: white;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.06);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-header {
+  background: linear-gradient(135deg, #f59e0b, #f97316);
+  padding: 16px 20px;
+  color: white;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.card-header h3 {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+
+.card-content {
+  flex: 1;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Sun path visualization */
+.sun-path-container {
+  padding: 20px 0;
+}
+
+.sun-path {
+  position: relative;
+  height: 100px;
+  width: 100%;
+}
+
+.sun-path-arc {
+  position: absolute;
+  top: 0;
+  left: 10%;
+  right: 10%;
+  height: 120px;
+  border-top-left-radius: 120px;
+  border-top-right-radius: 120px;
+  border: 2px dashed rgba(249, 115, 22, 0.3);
+  border-bottom: none;
+}
+
+.sun-position {
+  position: absolute;
+  bottom: 0;
+  left: 10%;
+  transform: translateX(-50%);
+  font-size: 1.5rem;
+  color: #f97316;
+  filter: drop-shadow(0 0 10px rgba(249, 115, 22, 0.5));
+  transition: left 1s ease;
+  z-index: 2;
+}
+
+.sun-position.is-night {
+  color: #6366f1;
+  filter: drop-shadow(0 0 10px rgba(99, 102, 241, 0.5));
+}
+
+.horizon-line {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: space-between;
+}
+
+.horizon-marker {
+  position: absolute;
+  bottom: 0;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 0.7rem;
+  color: #64748b;
+}
+
+.horizon-marker i {
+  font-size: 0.9rem;
+  margin-bottom: 5px;
+}
+
+.horizon-marker.sunrise {
+  left: 10%;
+  color: #f59e0b;
+}
+
+.horizon-marker.sunset {
+  left: 90%;
+  color: #6366f1;
+}
+
+.horizon-marker .time {
+  margin-top: 5px;
+  white-space: nowrap;
+}
+
+/* Time details */
+.sun-times {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.time-box {
+  flex: 1;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.time-label {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+
+.time-value {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.current-box {
+  background: rgba(249, 115, 22, 0.05);
+  border: 1px solid rgba(249, 115, 22, 0.2);
+}
+
+.sunrise-box .time-value {
+  color: #f59e0b;
+}
+
+.sunset-box .time-value {
+  color: #6366f1;
+}
+
+.day-progress {
+  height: 6px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+  margin: 10px 0 5px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #f59e0b, #f97316);
+  border-radius: 3px;
+  width: 0;
+  transition: width 1s ease;
+}
+
+.day-length {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+@media (max-width: 500px) {
+  .sun-times {
+    flex-direction: column;
+  }
+}
+</style>
