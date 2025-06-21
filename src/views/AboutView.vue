@@ -186,7 +186,7 @@
           </p>
           <div class="social-links">
             <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
-            <a href="#" class="social-link"><i class="fab fa-github"></i></a>
+            <a href="https://github.com/SeavThek168/pp-y3-weatherapp" class="social-link"><i class="fab fa-github"></i></a>
             <a href="#" class="social-link"><i class="fab fa-linkedin"></i></a>
             <a href="#" class="social-link"><i class="fab fa-instagram"></i></a>
           </div>
